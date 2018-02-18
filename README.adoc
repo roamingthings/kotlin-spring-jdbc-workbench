@@ -1,7 +1,8 @@
 = Workbench project for Spring (Boot) and JDBC in Kotlin
 
 image:https://travis-ci.org/roamingthings/kotlin-spring-jdbc-workbench.svg?branch=master["Build Status", link="https://travis-ci.org/roamingthings/kotlin-spring-jdbc-workbench"]
-image:https://circleci.com/gh/roamingthings/kotlin-spring-jdbc-workbench.png
+
+image:https://circleci.com/gh/roamingthings/kotlin-spring-jdbc-workbench.png["Build Status", link="https://circleci.com/gh/roamingthings/kotlin-spring-jdbc-workbench"]
 
 This project is used by me to tinker around with Spring (Boot) and JDBC in Kotlin.
 
