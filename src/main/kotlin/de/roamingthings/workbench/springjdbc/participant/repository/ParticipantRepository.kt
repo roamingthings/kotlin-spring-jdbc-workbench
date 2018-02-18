@@ -3,19 +3,22 @@ package de.roamingthings.workbench.springjdbc.participant.repository
 
 import de.roamingthings.workbench.springjdbc.participant.domain.Participant
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.core.RowMapper
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert
 import org.springframework.stereotype.Repository
+import java.sql.ResultSet
 import java.util.*
 
 
 interface ParticipantRepository {
     fun save(participant: Participant): Participant
     fun findAll(): List<Participant>
+    fun findByUuid(uuid: String): Participant?
 }
 
 @Repository
-class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate): ParticipantRepository {
+class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRepository {
     companion object {
         @JvmField
         val QUERY_UPDATE_PARTICIPANT = """
@@ -52,8 +55,15 @@ class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate): ParticipantRepo
         return savedParticipant
     }
 
-     override fun findAll(): List<Participant> =
-        jdbcTemplate.query("SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT WHERE UUID = ?") {rs, _ ->
+    override fun findAll(): List<Participant> =
+            jdbcTemplate.query("SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT", ParticipantRowMapper)
+
+    override fun findByUuid(uuid: String): Participant? =
+            jdbcTemplate.queryForObject("SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT WHERE UUID=?", ParticipantRowMapper, uuid)
+}
+
+object ParticipantRowMapper : RowMapper<Participant> {
+    override fun mapRow(rs: ResultSet, rowNum: Int): Participant? =
             Participant(
                     rs.getString("uuid"),
                     rs.getDate("created"),
@@ -62,5 +72,4 @@ class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate): ParticipantRepo
                     rs.getString("last_name"),
                     rs.getString("additional_names"),
                     setOf())
-        }
 }

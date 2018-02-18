@@ -18,3 +18,5 @@ CREATE TABLE ADDRESS (
   FOREIGN KEY (PARTICIPANT_UUID)
   REFERENCES PARTICIPANT (UUID)
 );
+
+--INSERT INTO PARTICIPANT (uuid, created, updated, first_name, last_name, additional_names) VALUES (?,?,?,?,?,?)

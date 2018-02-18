@@ -10,6 +10,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.junit4.SpringRunner
+import java.util.*
 
 @RunWith(SpringRunner::class)
 @DataJpaTest
@@ -45,5 +46,62 @@ class JdbcParticipantRepositoryTest {
         softly.assertThat(savedParticipant.firstName).isEqualTo("First")
         softly.assertThat(savedParticipant.lastName).isEqualTo("Last")
         softly.assertThat(savedParticipant.additionalNames).isEqualTo("Additional")
+    }
+
+    @Test
+    fun `findAll_should_find_all_participants`() {
+        // given
+        val participant1 = aPersistedParticipant()
+        val participant2 = aPersistedParticipant()
+
+        // when
+        val participants = jdbcParticipantRepository.findAll()
+
+        // then
+        softly.assertThat(participants).hasSize(2)
+        softly.assertThat(participants).contains(participant1)
+        softly.assertThat(participants).contains(participant2)
+    }
+
+    @Test
+    fun `findByUuid_should_find_a_participant`() {
+        // given
+        val participant = aPersistedParticipant()
+
+        // when
+        val foundParticipant = jdbcParticipantRepository.findByUuid(participant.uuid!!)
+
+        // then
+        softly.assertThat(foundParticipant).isNotNull
+        softly.assertThat(foundParticipant).isEqualTo(participant)
+    }
+
+    private fun aPersistedParticipant(): Participant {
+        val random = Random()
+        val participant = aParticipant(random)
+
+        jdbcTemplate.update(
+                "INSERT INTO PARTICIPANT (uuid, created, updated, first_name, last_name, additional_names) VALUES (?,?,?,?,?,?)",
+                participant.uuid,
+                participant.created,
+                participant.updated,
+                participant.firstName,
+                participant.lastName,
+                participant.additionalNames
+        )
+
+        return participant
+    }
+
+    private fun aParticipant(random: Random): Participant {
+        val participant = Participant(
+                UUID.randomUUID().toString(),
+                Date(),
+                Date(),
+                "First ${random.nextInt()}",
+                "Last ${random.nextInt()}",
+                "Additional ${random.nextInt()}",
+                setOf())
+        return participant
     }
 }
