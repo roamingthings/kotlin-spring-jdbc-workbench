@@ -19,20 +19,6 @@ interface ParticipantRepository {
 
 @Repository
 class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRepository {
-    companion object {
-        @JvmField
-        val QUERY_UPDATE_PARTICIPANT = """
-          UPDATE PARTICIPANT
-            SET
-              UPDATED = :updated,
-              FIRST_NAME = :firstName,
-              LAST_NAME = :lastName,
-              ADDITIONAL_NAMES = :additionalNames
-            WHERE
-              UUID = :uuid
-"""
-    }
-
     override fun save(participant: Participant): Participant =
             when {
                 participant.uuid == null -> saveNewEntity(participant)
