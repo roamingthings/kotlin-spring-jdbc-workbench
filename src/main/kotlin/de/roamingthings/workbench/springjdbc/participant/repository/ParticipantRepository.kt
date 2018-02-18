@@ -33,26 +33,40 @@ class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRep
 """
     }
 
-    override fun save(participant: Participant): Participant {
-        val savedParticipant: Participant?
-        if (participant.uuid == null) {
-            val uuid = UUID.randomUUID().toString()
-            val currentTime = Date()
-
-            savedParticipant = participant.copy(
-                    uuid = uuid,
-                    created = currentTime,
-                    updated = currentTime)
-            SimpleJdbcInsert(jdbcTemplate).withTableName("PARTICIPANT").apply {
-                execute(BeanPropertySqlParameterSource(savedParticipant))
+    override fun save(participant: Participant): Participant =
+            when {
+                participant.uuid == null -> saveNewEntity(participant)
+                else -> updateEntity(participant)
             }
-        } else {
-            val currentTime = Date()
-            savedParticipant = participant.copy(
-                    updated = currentTime)
-            // TODO implement update
+
+    private fun saveNewEntity(participant: Participant): Participant {
+        val uuid = UUID.randomUUID().toString()
+        val currentTime = Date()
+
+        val savedParticipant = participant.copy(
+                uuid = uuid,
+                created = currentTime,
+                updated = currentTime)
+        SimpleJdbcInsert(jdbcTemplate).withTableName("PARTICIPANT").apply {
+            execute(BeanPropertySqlParameterSource(savedParticipant))
         }
+
         return savedParticipant
+    }
+
+    private fun updateEntity(participant: Participant): Participant {
+        if (participant.uuid == null) {
+            throw IllegalArgumentException("uuid may not be null")
+        }
+        val updatedParticipant = participant.copy(updated = Date())
+        jdbcTemplate.update("UPDATE PARTICIPANT SET UPDATED=?, FIRST_NAME=?, LAST_NAME=?, ADDITIONAL_NAMES=? WHERE UUID=?",
+                updatedParticipant.updated,
+                updatedParticipant.firstName,
+                updatedParticipant.lastName,
+                updatedParticipant.additionalNames,
+                updatedParticipant.uuid
+        )
+        return updatedParticipant
     }
 
     override fun findAll(): List<Participant> =

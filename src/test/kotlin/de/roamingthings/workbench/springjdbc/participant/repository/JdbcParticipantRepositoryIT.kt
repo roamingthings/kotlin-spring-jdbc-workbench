@@ -15,7 +15,7 @@ import java.util.*
 @RunWith(SpringRunner::class)
 @DataJpaTest
 @ComponentScan(basePackages = arrayOf("de.roamingthings.workbench.springjdbc.participant"))
-class JdbcParticipantRepositoryTest {
+class JdbcParticipantRepositoryIT {
 
     @Autowired
     lateinit var jdbcParticipantRepository: JdbcParticipantRepository
@@ -74,6 +74,29 @@ class JdbcParticipantRepositoryTest {
         // then
         softly.assertThat(foundParticipant).isNotNull
         softly.assertThat(foundParticipant).isEqualTo(participant)
+    }
+
+    @Test
+    fun `save_should_update_an_existing_participant`() {
+        // given
+        val participant = aPersistedParticipant()
+        val modifiedParticipant = participant.copy(
+                firstName = "Updated first",
+                lastName = "Updated last",
+                additionalNames = "Additional updated"
+        )
+
+        // when
+        val savedParticipant = jdbcParticipantRepository.save(modifiedParticipant)
+
+        // then
+        softly.assertThat(savedParticipant).isNotNull
+        softly.assertThat(savedParticipant.uuid).isEqualTo(participant.uuid)
+        softly.assertThat(savedParticipant.created).isEqualTo(participant.created)
+        softly.assertThat(savedParticipant.updated).isAfter(participant.updated)
+        softly.assertThat(savedParticipant.firstName).isEqualTo("Updated first")
+        softly.assertThat(savedParticipant.lastName).isEqualTo("Updated last")
+        softly.assertThat(savedParticipant.additionalNames).isEqualTo("Additional updated")
     }
 
     private fun aPersistedParticipant(): Participant {
