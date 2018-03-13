@@ -192,7 +192,46 @@ class JdbcParticipantRepositoryIT {
         softly.assertThat(count).isEqualTo(10)
     }
 
+    @Test
+    fun `findAllById should find all entities`() {
+        // given
+        val participantIds = (1 until 10)
+                .map {
+                    aPersistedParticipant()
+                }
+                .mapNotNull {
+                    it.uuid
+                }
 
+        // when
+        val foundParticipants = jdbcParticipantRepository.findAllById(participantIds.toMutableList())
+
+        // then
+        softly.assertThat(foundParticipants).extracting("uuid").containsAll(participantIds.toMutableList())
+    }
+
+    @Test
+    fun `existsById should return true for persited entity`() {
+        // given
+        val participant = aPersistedParticipant()
+
+        // when
+        val participantExists = jdbcParticipantRepository.existsById(participant.uuid!!)
+
+        // then
+        softly.assertThat(participantExists).isTrue
+    }
+
+    @Test
+    fun `existsById should return false for unknown entity`() {
+        // given
+
+        // when
+        val participantExists = jdbcParticipantRepository.existsById("unknown")
+
+        // then
+        softly.assertThat(participantExists).isFalse
+    }
 
     private fun aPersistedParticipant(): Participant {
         val participant = aParticipant()
