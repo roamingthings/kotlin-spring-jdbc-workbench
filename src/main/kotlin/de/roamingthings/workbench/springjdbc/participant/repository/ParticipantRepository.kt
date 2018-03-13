@@ -2,8 +2,8 @@ package de.roamingthings.workbench.springjdbc.participant.repository
 
 
 import de.roamingthings.workbench.springjdbc.participant.domain.Participant
+import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.RowMapper
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert
 import org.springframework.stereotype.Repository
@@ -14,7 +14,7 @@ import java.util.*
 interface ParticipantRepository {
     fun save(participant: Participant): Participant
     fun findAll(): List<Participant>
-    fun findByUuid(uuid: String): Participant?
+    fun findById(uuid: String): Participant?
 }
 
 @Repository
@@ -56,20 +56,20 @@ class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRep
     }
 
     override fun findAll(): List<Participant> =
-            jdbcTemplate.query("SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT", ParticipantRowMapper)
+            jdbcTemplate.query("SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT", this::mapToParticipant)
 
-    override fun findByUuid(uuid: String): Participant? =
-            jdbcTemplate.queryForObject("SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT WHERE UUID=?", ParticipantRowMapper, uuid)
-}
+    override fun findById(uuid: String): Participant? = try {
+        jdbcTemplate.queryForObject("SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT WHERE UUID=?", this::mapToParticipant, arrayOf(uuid))
+    } catch (e: EmptyResultDataAccessException) {
+        null
+    }
 
-object ParticipantRowMapper : RowMapper<Participant> {
-    override fun mapRow(rs: ResultSet, rowNum: Int): Participant? =
-            Participant(
-                    rs.getString("uuid"),
-                    rs.getDate("created"),
-                    rs.getDate("updated"),
-                    rs.getString("first_name"),
-                    rs.getString("last_name"),
-                    rs.getString("additional_names"),
-                    setOf())
+    private fun mapToParticipant(rs: ResultSet, rowNum: Int) = Participant(
+            uuid = rs.getString("uuid"),
+            created = rs.getDate("created"),
+            updated = rs.getDate("updated"),
+            firstName = rs.getString("first_name"),
+            lastName = rs.getString("last_name"),
+            additionalNames = rs.getString("additional_names")
+    )
 }

@@ -27,7 +27,7 @@ class JdbcParticipantRepositoryIT {
     private val softly = JUnitSoftAssertions()
 
     @Test
-    fun `save_should_persist_new_participant`() {
+    fun `save should persist new participant`() {
         // given
         val participant = Participant(
                 firstName = "First",
@@ -49,7 +49,7 @@ class JdbcParticipantRepositoryIT {
     }
 
     @Test
-    fun `findAll_should_find_all_participants`() {
+    fun `findAll should find all participants`() {
         // given
         val participant1 = aPersistedParticipant()
         val participant2 = aPersistedParticipant()
@@ -64,12 +64,12 @@ class JdbcParticipantRepositoryIT {
     }
 
     @Test
-    fun `findByUuid_should_find_a_participant`() {
+    fun `findByUuid should find a participant`() {
         // given
         val participant = aPersistedParticipant()
 
         // when
-        val foundParticipant = jdbcParticipantRepository.findByUuid(participant.uuid!!)
+        val foundParticipant = jdbcParticipantRepository.findById(participant.uuid!!)
 
         // then
         softly.assertThat(foundParticipant).isNotNull
@@ -77,7 +77,7 @@ class JdbcParticipantRepositoryIT {
     }
 
     @Test
-    fun `save_should_update_an_existing_participant`() {
+    fun `save should update an existing participant`() {
         // given
         val participant = aPersistedParticipant()
         val modifiedParticipant = participant.copy(
