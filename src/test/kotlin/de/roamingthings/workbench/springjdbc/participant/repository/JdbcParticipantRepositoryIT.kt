@@ -233,6 +233,20 @@ class JdbcParticipantRepositoryIT {
         softly.assertThat(participantExists).isFalse
     }
 
+    @Test
+    fun `delete should delete given entity`() {
+        // given
+        val participant1 = aPersistedParticipant()
+        val participant2 = aPersistedParticipant()
+
+        // when
+        jdbcParticipantRepository.delete(participant1)
+
+        // then
+        softly.assertThat(jdbcParticipantRepository.existsById(participant1.uuid!!)).isFalse
+        softly.assertThat(jdbcParticipantRepository.existsById(participant2.uuid!!)).isTrue
+    }
+
     private fun aPersistedParticipant(): Participant {
         val participant = aParticipant()
 
