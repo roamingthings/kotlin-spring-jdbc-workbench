@@ -17,6 +17,8 @@ import java.util.*
 @ComponentScan(basePackages = arrayOf("de.roamingthings.workbench.springjdbc.participant"))
 class JdbcParticipantRepositoryIT {
 
+    val random = Random()
+
     @Autowired
     lateinit var jdbcParticipantRepository: JdbcParticipantRepository
 
@@ -99,9 +101,101 @@ class JdbcParticipantRepositoryIT {
         softly.assertThat(savedParticipant.additionalNames).isEqualTo("Additional updated")
     }
 
+    @Test
+    fun `deleteById should delete by given id`() {
+        // given
+        val participant = aPersistedParticipant()
+        val participantUuid = participant.uuid!!
+
+        // when
+        jdbcParticipantRepository.deleteById(participantUuid)
+
+        // then
+        val count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM PARTICIPANT WHERE UUID=?", Long::class.java, arrayOf(participantUuid))
+        softly.assertThat(count).isEqualTo(0)
+    }
+
+    @Test
+    fun `deleteAll should only delete entities from list`() {
+        // given
+        val participant1 = aPersistedParticipant()
+        val participant2 = aPersistedParticipant()
+        val participant3 = aPersistedParticipant()
+        val participantList = mutableListOf(participant1, participant2)
+
+        // when
+        jdbcParticipantRepository.deleteAll(participantList)
+
+        // then
+        softly.assertThat(jdbcParticipantRepository.existsById(participant1.uuid!!)).isFalse
+        softly.assertThat(jdbcParticipantRepository.existsById(participant2.uuid!!)).isFalse
+        softly.assertThat(jdbcParticipantRepository.existsById(participant3.uuid!!)).isTrue
+    }
+
+    @Test
+    fun `deleteAll should delete all entities`() {
+        // given
+        (1 until 10).forEach {
+            aPersistedParticipant()
+        }
+
+        // when
+        jdbcParticipantRepository.deleteAll()
+
+        // then
+        softly.assertThat(jdbcParticipantRepository.count()).isEqualTo(0)
+    }
+
+    @Test
+    fun `saveAll should save all entities`() {
+        // given
+        val participantList = (1 until 10).map {
+            aParticipant()
+        }
+
+        // when
+        jdbcParticipantRepository.saveAll(participantList.toMutableList())
+
+        // then
+        participantList
+                .mapNotNull { participant ->
+                    participant.uuid
+                }
+                .forEach {
+                    softly.assertThat(jdbcParticipantRepository.existsById(it))
+                }
+    }
+
+    @Test
+    fun `count of empty database should return 0`() {
+        // given
+        // an empty database
+
+        // when
+        val count = jdbcParticipantRepository.count()
+
+        // then
+        softly.assertThat(count).isEqualTo(0)
+    }
+
+    @Test
+    fun `count of database with 10 entities should return 10`() {
+        // given
+        (1 until 10).forEach {
+            aPersistedParticipant()
+        }
+
+        // when
+        val count = jdbcParticipantRepository.count()
+
+        // then
+        softly.assertThat(count).isEqualTo(10)
+    }
+
+
+
     private fun aPersistedParticipant(): Participant {
-        val random = Random()
-        val participant = aParticipant(random)
+        val participant = aParticipant()
 
         jdbcTemplate.update(
                 "INSERT INTO PARTICIPANT (uuid, created, updated, first_name, last_name, additional_names) VALUES (?,?,?,?,?,?)",
@@ -116,7 +210,7 @@ class JdbcParticipantRepositoryIT {
         return participant
     }
 
-    private fun aParticipant(random: Random): Participant {
+    private fun aParticipant(): Participant {
         val participant = Participant(
                 UUID.randomUUID().toString(),
                 Date(),

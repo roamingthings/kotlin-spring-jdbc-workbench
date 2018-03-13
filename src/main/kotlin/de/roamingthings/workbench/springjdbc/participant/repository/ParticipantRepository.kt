@@ -12,6 +12,14 @@ import java.util.*
 
 
 interface ParticipantRepository {
+    fun deleteById(id: String)
+    fun deleteAll(entities: MutableIterable<Participant>)
+    fun deleteAll()
+    fun saveAll(entities: MutableIterable<Participant>): MutableIterable<Participant>
+    fun count(): Long
+    fun findAllById(ids: MutableIterable<String>): MutableIterable<Participant>
+    fun existsById(id: String): Boolean
+    fun delete(participant: Participant)
     fun save(participant: Participant): Participant
     fun findAll(): List<Participant>
     fun findById(uuid: String): Participant?
@@ -19,6 +27,38 @@ interface ParticipantRepository {
 
 @Repository
 class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRepository {
+
+    override fun deleteById(id: String) {
+        jdbcTemplate.update("DELETE FROM PARTICIPANT WHERE UUID=?", arrayOf(id))
+    }
+
+    override fun deleteAll(entities: MutableIterable<Participant>) {
+        entities.forEach(this::delete)
+    }
+
+    override fun deleteAll() {
+        jdbcTemplate.update("DELETE FROM PARTICIPANT")
+    }
+
+    override fun saveAll(entities: MutableIterable<Participant>): MutableIterable<Participant> =
+            entities.map(this::save).toMutableList()
+
+    override fun count(): Long =
+            jdbcTemplate.queryForObject("SELECT count(*) FROM PARTICIPANT", Long::class.java) ?: 0
+
+    override fun findAllById(ids: MutableIterable<String>): MutableIterable<Participant> =
+            ids.mapNotNull(this::findById).toMutableList()
+
+    override fun existsById(id: String): Boolean =
+            jdbcTemplate.queryForObject("SELECT count(*) FROM PARTICIPANT WHERE uuid=?", Long::class.java, arrayOf(id)) > 0
+
+    override fun delete(participant: Participant) {
+        when {
+            participant.uuid != null -> deleteById(participant.uuid)
+            else -> throw IllegalArgumentException("Participant to delete does not have an id")
+        }
+    }
+
     override fun save(participant: Participant): Participant =
             when {
                 participant.uuid == null -> saveNewEntity(participant)

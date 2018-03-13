@@ -48,6 +48,7 @@ repositories {
 
 dependencies {
 	compile('org.springframework.boot:spring-boot-starter-jdbc')
+	compile('org.springframework.data:spring-data-commons')
 	compile('org.springframework.boot:spring-boot-starter-web')
 	compile('com.fasterxml.jackson.module:jackson-module-kotlin')
 
