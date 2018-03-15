@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.simple.SimpleJdbcInsert
 import org.springframework.stereotype.Repository
 import java.sql.ResultSet
 import java.util.*
+import kotlin.collections.ArrayList
 
 
 interface ParticipantRepository {
@@ -32,6 +33,7 @@ const val SQL_EXISTS_BY_ID = "SELECT count(*) FROM PARTICIPANT WHERE uuid=?"
 const val SQL_UPDATE_SINGLE = "UPDATE PARTICIPANT SET UPDATED=?, FIRST_NAME=?, LAST_NAME=?, ADDITIONAL_NAMES=? WHERE UUID=?"
 const val SQL_FIND_ALL = "SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT"
 const val SQL_FIND_BY_ID = "SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT WHERE UUID=?"
+const val SQL_FIND_BY_MULTIPLE_IDS = "SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT WHERE UUID IN "
 
 @Repository
 class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRepository {
@@ -55,8 +57,11 @@ class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRep
     override fun count(): Long =
             jdbcTemplate.queryForObject(SQL_COUNT, Long::class.java) ?: 0
 
-    override fun findAllById(ids: MutableIterable<String>): MutableIterable<Participant> =
-            ids.mapNotNull(this::findById).toMutableList()
+    override fun findAllById(ids: MutableIterable<String>): MutableIterable<Participant> {
+        val parameterString = (1 .. ids.count()).map { "?" }.joinToString(",", "(", ")")
+        val idArray = ArrayList<String>(ids.toMutableList()).toArray()
+        return jdbcTemplate.query(SQL_FIND_BY_MULTIPLE_IDS + parameterString, this::mapToParticipant, idArray)
+    }
 
     override fun existsById(id: String): Boolean =
             jdbcTemplate.queryForObject(SQL_EXISTS_BY_ID, Long::class.java, arrayOf(id)) > 0
