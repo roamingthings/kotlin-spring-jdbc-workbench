@@ -25,32 +25,41 @@ interface ParticipantRepository {
     fun findById(uuid: String): Participant?
 }
 
+const val SQL_DELETE_SINGLE = "DELETE FROM PARTICIPANT WHERE UUID=?"
+const val SQL_DELETE_ALL = "DELETE FROM PARTICIPANT"
+const val SQL_COUNT = "SELECT count(*) FROM PARTICIPANT"
+const val SQL_EXISTS_BY_ID = "SELECT count(*) FROM PARTICIPANT WHERE uuid=?"
+const val SQL_UPDATE_SINGLE = "UPDATE PARTICIPANT SET UPDATED=?, FIRST_NAME=?, LAST_NAME=?, ADDITIONAL_NAMES=? WHERE UUID=?"
+const val SQL_FIND_ALL = "SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT"
+const val SQL_FIND_BY_ID = "SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT WHERE UUID=?"
+
 @Repository
 class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRepository {
 
     override fun deleteById(id: String) {
-        jdbcTemplate.update("DELETE FROM PARTICIPANT WHERE UUID=?", arrayOf(id))
+        jdbcTemplate.update(SQL_DELETE_SINGLE, arrayOf(id))
     }
 
     override fun deleteAll(entities: MutableIterable<Participant>) {
-        entities.forEach(this::delete)
+        val entityIds = entities.mapNotNull { it.uuid }.map { arrayOf(it) }
+        jdbcTemplate.batchUpdate(SQL_DELETE_SINGLE, entityIds)
     }
 
     override fun deleteAll() {
-        jdbcTemplate.update("DELETE FROM PARTICIPANT")
+        jdbcTemplate.update(SQL_DELETE_ALL)
     }
 
     override fun saveAll(entities: MutableIterable<Participant>): MutableIterable<Participant> =
             entities.map(this::save).toMutableList()
 
     override fun count(): Long =
-            jdbcTemplate.queryForObject("SELECT count(*) FROM PARTICIPANT", Long::class.java) ?: 0
+            jdbcTemplate.queryForObject(SQL_COUNT, Long::class.java) ?: 0
 
     override fun findAllById(ids: MutableIterable<String>): MutableIterable<Participant> =
             ids.mapNotNull(this::findById).toMutableList()
 
     override fun existsById(id: String): Boolean =
-            jdbcTemplate.queryForObject("SELECT count(*) FROM PARTICIPANT WHERE uuid=?", Long::class.java, arrayOf(id)) > 0
+            jdbcTemplate.queryForObject(SQL_EXISTS_BY_ID, Long::class.java, arrayOf(id)) > 0
 
     override fun delete(participant: Participant) {
         when {
@@ -85,7 +94,7 @@ class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRep
             throw IllegalArgumentException("uuid may not be null")
         }
         val updatedParticipant = participant.copy(updated = Date())
-        jdbcTemplate.update("UPDATE PARTICIPANT SET UPDATED=?, FIRST_NAME=?, LAST_NAME=?, ADDITIONAL_NAMES=? WHERE UUID=?",
+        jdbcTemplate.update(SQL_UPDATE_SINGLE,
                 updatedParticipant.updated,
                 updatedParticipant.firstName,
                 updatedParticipant.lastName,
@@ -96,10 +105,10 @@ class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRep
     }
 
     override fun findAll(): List<Participant> =
-            jdbcTemplate.query("SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT", this::mapToParticipant)
+            jdbcTemplate.query(SQL_FIND_ALL, this::mapToParticipant)
 
     override fun findById(uuid: String): Participant? = try {
-        jdbcTemplate.queryForObject("SELECT uuid, created, updated, first_name, last_name, additional_names FROM PARTICIPANT WHERE UUID=?", this::mapToParticipant, arrayOf(uuid))
+        jdbcTemplate.queryForObject(SQL_FIND_BY_ID, this::mapToParticipant, arrayOf(uuid))
     } catch (e: EmptyResultDataAccessException) {
         null
     }
