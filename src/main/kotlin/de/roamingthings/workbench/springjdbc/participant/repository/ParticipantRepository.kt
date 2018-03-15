@@ -3,10 +3,13 @@ package de.roamingthings.workbench.springjdbc.participant.repository
 
 import de.roamingthings.workbench.springjdbc.participant.domain.Participant
 import org.springframework.dao.EmptyResultDataAccessException
+import org.springframework.jdbc.core.BatchPreparedStatementSetter
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource
+import org.springframework.jdbc.core.namedparam.SqlParameterSourceUtils
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert
 import org.springframework.stereotype.Repository
+import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.util.*
 import kotlin.collections.ArrayList
@@ -51,14 +54,11 @@ class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRep
         jdbcTemplate.update(SQL_DELETE_ALL)
     }
 
-    override fun saveAll(entities: MutableIterable<Participant>): MutableIterable<Participant> =
-            entities.map(this::save).toMutableList()
-
     override fun count(): Long =
             jdbcTemplate.queryForObject(SQL_COUNT, Long::class.java) ?: 0
 
     override fun findAllById(ids: MutableIterable<String>): MutableIterable<Participant> {
-        val parameterString = (1 .. ids.count()).map { "?" }.joinToString(",", "(", ")")
+        val parameterString = (1..ids.count()).map { "?" }.joinToString(",", "(", ")")
         val idArray = ArrayList<String>(ids.toMutableList()).toArray()
         return jdbcTemplate.query(SQL_FIND_BY_MULTIPLE_IDS + parameterString, this::mapToParticipant, idArray)
     }
@@ -80,25 +80,29 @@ class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRep
             }
 
     private fun saveNewEntity(participant: Participant): Participant {
+        val savedParticipant = prepareEntityToCreate(participant)
+        SimpleJdbcInsert(jdbcTemplate)
+                .withTableName("PARTICIPANT")
+                .execute(BeanPropertySqlParameterSource(savedParticipant))
+
+        return savedParticipant
+    }
+
+    private fun prepareEntityToCreate(participant: Participant): Participant {
         val uuid = UUID.randomUUID().toString()
         val currentTime = Date()
 
-        val savedParticipant = participant.copy(
+        return participant.copy(
                 uuid = uuid,
                 created = currentTime,
                 updated = currentTime)
-        SimpleJdbcInsert(jdbcTemplate).withTableName("PARTICIPANT").apply {
-            execute(BeanPropertySqlParameterSource(savedParticipant))
-        }
-
-        return savedParticipant
     }
 
     private fun updateEntity(participant: Participant): Participant {
         if (participant.uuid == null) {
             throw IllegalArgumentException("uuid may not be null")
         }
-        val updatedParticipant = participant.copy(updated = Date())
+        val updatedParticipant = prepareEntityToUpdate(participant)
         jdbcTemplate.update(SQL_UPDATE_SINGLE,
                 updatedParticipant.updated,
                 updatedParticipant.firstName,
@@ -107,6 +111,52 @@ class JdbcParticipantRepository(val jdbcTemplate: JdbcTemplate) : ParticipantRep
                 updatedParticipant.uuid
         )
         return updatedParticipant
+    }
+
+    private fun prepareEntityToUpdate(participant: Participant): Participant {
+        return participant.copy(updated = Date())
+    }
+
+    override fun saveAll(entities: MutableIterable<Participant>): MutableIterable<Participant> {
+        val (entitiesToCreate, entitiesToUpdate) = entities.partition { it.uuid == null }
+
+        return saveNewEntities(entitiesToCreate).union(updateEntities(entitiesToUpdate)).toMutableList()
+    }
+
+    private fun updateEntities(entitiesToUpdate: List<Participant>): List<Participant> {
+        if (entitiesToUpdate.isEmpty()) {
+            return emptyList()
+        }
+
+        val preparedEntities = entitiesToUpdate.map(this::prepareEntityToUpdate)
+
+        jdbcTemplate.batchUpdate(SQL_UPDATE_SINGLE, object : BatchPreparedStatementSetter {
+            override fun setValues(ps: PreparedStatement, i: Int) {
+                val entity = preparedEntities[i]
+                ps.setObject(1, entity.updated)
+                ps.setObject(2, entity.firstName)
+                ps.setObject(3, entity.lastName)
+                ps.setObject(4, entity.additionalNames)
+                ps.setObject(5, entity.uuid)
+            }
+
+            override fun getBatchSize() =
+                    preparedEntities.size
+        })
+
+        return preparedEntities
+    }
+
+    private fun saveNewEntities(entitiesToCreate: List<Participant>): List<Participant> {
+        if (entitiesToCreate.isEmpty()) {
+            return emptyList()
+        }
+        val preparedEntities = entitiesToCreate.map(this::prepareEntityToCreate)
+
+        val batch = SqlParameterSourceUtils.createBatch(preparedEntities)
+        SimpleJdbcInsert(jdbcTemplate).withTableName("PARTICIPANT").executeBatch(*batch)
+
+        return preparedEntities
     }
 
     override fun findAll(): List<Participant> =
